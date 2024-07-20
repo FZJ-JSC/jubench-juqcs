@@ -5,19 +5,19 @@ message: >-
 authors:
   - given-names: Dennis
     family-names: Willsch
-    affiliation: Forschunsgzentrum Jülich, Jülich Supercomputing Centre
+    affiliation: Forschungszentrum Jülich, Jülich Supercomputing Centre
     orcid: 'https://orcid.org/0000-0003-3855-5100'
   - given-names: Hans
     family-names: De Raedt
-    affiliation: Forschunsgzentrum Jülich, Jülich Supercomputing Centre
+    affiliation: Forschungszentrum Jülich, Jülich Supercomputing Centre
     orcid: 'https://orcid.org/0000-0001-8461-4015'
   - given-names: Andreas
     family-names: Herten
-    affiliation: Forschunsgzentrum Jülich, Jülich Supercomputing Centre
+    affiliation: Forschungszentrum Jülich, Jülich Supercomputing Centre
     orcid: 'https://orcid.org/0000-0002-7150-2505'
   - given-names: Sebastian
     family-names: Achilles
-    affiliation: Forschunsgzentrum Jülich, Jülich Supercomputing Centre
+    affiliation: Forschungszentrum Jülich, Jülich Supercomputing Centre
     orcid: 'https://orcid.org/0000-0002-1943-6803'
 abstract: "The JUQCS benchmark of the JUPITER Benchmark Suite"
 identifiers:
