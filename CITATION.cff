@@ -1,0 +1,33 @@
+cff-version: 1.2.0
+title: "JUPITER Benchmark Suite: JUQCS"
+message: >-
+  In addition to citing this benchmark repository, please also cite either the JUPITER Benchmark Suite or the accompanying SC24 paper
+authors:
+  - given-names: Dennis
+    family-names: Willsch
+    affiliation: Forschunsgzentrum Jülich, Jülich Supercomputing Centre
+    orcid: 'https://orcid.org/0000-0003-3855-5100'
+  - given-names: Hans
+    family-names: De Raedt
+    affiliation: Forschunsgzentrum Jülich, Jülich Supercomputing Centre
+    orcid: 'https://orcid.org/0000-0001-8461-4015'
+  - given-names: Andreas
+    family-names: Herten
+    affiliation: Forschunsgzentrum Jülich, Jülich Supercomputing Centre
+    orcid: 'https://orcid.org/0000-0002-7150-2505'
+  - given-names: Sebastian
+    family-names: Achilles
+    affiliation: Forschunsgzentrum Jülich, Jülich Supercomputing Centre
+    orcid: 'https://orcid.org/0000-0002-1943-6803'
+abstract: "The JUQCS benchmark of the JUPITER Benchmark Suite"
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.12737559
+    description: Version-agnostic Zenodo Identifier
+repository-code: 'https://github.com/FZJ-JSC/jubench-amber/'
+license: MIT
+date-released: '2024-07-13'
+references:
+  - title: "JUPITER Benchmark Suite"
+    type: software
+    doi: 10.5281/zenodo.12737073

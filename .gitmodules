@@ -1,0 +1,3 @@
+[submodule "src/juqcs-light"]
+	path = src/juqcs-light
+	url = https://jugit.fz-juelich.de/qip/juqcs-light.git

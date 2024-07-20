@@ -1,0 +1,3 @@
+qubits,large,verified,ngates,nodes,gpus,mem/gpu[GiB],total_time[s],init_time[s],run_time[s],mpi_time[s],norm,norm_total_time[s],norm_mpi_time[s],systemname,jobid,directory
+42,yes,correct,462,512,2048,32.0,201.03,27.46,174.47,159.60,1.35,148.38,117.80,juwelsbooster,7527323,runs/000053/000000_execute/work/h42
+

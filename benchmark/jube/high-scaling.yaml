@@ -1,0 +1,118 @@
+name: juqcs
+outpath: runs
+comment: JUBE configuration for JUQCS high scaling benchmarks
+
+parameterset:
+  - name: params
+    parameter:
+        - {name: large,          tag: "!large",       _: "no"}
+        - {name: large,          tag: "large",        _: "yes"}
+        - {name: qubits,         tag: "!large",       _: '41'}
+        - {name: qubits,         tag: "large",        _: '42'}
+        - {name: problem,                             _: h$qubits}
+  - name: systemParameter
+    init_with: platform.xml
+    parameter:
+        - {name: tasks,          tag: "!large",       _: '2**($qubits - 30)',     mode: python}  # here we require 16 GiB per GPU = 16 GiB per task
+        - {name: tasks,          tag: "large",        _: '2**($qubits - 31)',     mode: python}  # here we are requiring 32 GiB per GPU = 32 GiB per task
+        - {name: taskspernode,                        _: 'min($tasks,4)',         mode: python}
+        - {name: nodes,                               _: '$tasks//$taskspernode', mode: python}
+        - {name: threadspertask,                      _: 12}
+        - {name: timelimit,                           _: '00:20:00'}
+        - {name: gres,                                _: 'gpu:$taskspernode'}
+        - {name: executable,                          _: qc22.gpu.exe}
+        - {name: args_exec,                           _: '$problem.qcx /*GPUS:$taskspernode /*SWAP:$taskspernode > $problem.log'}
+        - {name: env,                                 _: 'export I_MPI_HARD_FINALIZE=1 KMP_AFFINITY=compact'}
+        - {name: systemname,                          _: 'cat /etc/FZJ/systemname | tr -d "\n"', mode: shell}
+        - {name: queue,                               _: '"largebooster" if $nodes > 256 else "booster"', mode: python}  # only on juwels booster
+        - {name: preprocess,                          _: 'module load NVHPC ParaStationMPI'}
+        - {name: postprocess,                         _: 'env > env.log && grep "All done" progress.log'}
+  - name: executeset
+    init_with: platform.xml
+    parameter:
+        - {name: done_file,    _: done_file}
+        - {name: error_file,   _: ReportError.log}
+        - {name: args_starter, _: --cpus-per-task=$threadspertask}
+
+fileset:
+    name: files
+    link: ../../src/juqcs-light/src
+    prepare:
+        - $preprocess
+        - {tag: "force_recompile",  work_dir: src, _: make -B}
+        - {tag: "!force_recompile", work_dir: src, _: make}
+    copy:
+        - ../../src/juqcs-light/src/input/$problem.qcx
+        - ../../src/juqcs-light/src/$executable
+
+step:
+    name: execute
+    use:
+        - params
+        - systemParameter
+        - executeset
+        - files
+        - {from: platform.xml, _: jobfiles}
+        - {from: platform.xml, _: executesub}
+    do:
+        done_file: $done_file
+        error_file: $error_file
+        _: $submit $submit_script
+
+patternset:
+    - name: pattern_log
+      pattern:
+        - {name: nqubits,           type: int,                            _: 'Number of qubits *= *$jube_pat_int'}
+        - {name: expectations,                                            _: '-+i--+<Qx\(i\)>-+<Qy\(i\)>-+<Qz\(i\)>-\s((?:[0-9\.E+ ]*\s)+) *-+'}
+        - {name: verified,                                  mode: python, _: '["wrong","correct"][int(all([i, 0, 0.5, 0.5] == list(map(float,line.split())) for i,line in enumerate("""$expectations""".strip().splitlines())))]'}
+        # uncomment next line to debug verification
+        #- {name: verified,                                  mode: python, _: '"check if [[i,0,0.5,0.5]] == "+str(list(list(map(float,line.split())) for i,line in enumerate("""$expectations""".strip().splitlines())))'}
+        - {name: mpi,               type: int,                            _: 'Number of MPI processes *= *$jube_pat_int'}
+        - {name: memory,            type: int,                            _: 'Memory per MPI process allocated to store .psi> *= *$jube_pat_fp'}
+        - {name: noperations,       type: int,                            _: 'Total number of operations *= *$jube_pat_int'}
+        - {name: ngates,            type: int,              mode: python, _: '$noperations - 1'}
+        - {name: mem_per_mpi,                    unit: GiB, mode: python, _: '$memory / 1024'}
+        - {name: total_time,        type: float, unit: s,                 _: 'Elapsed time \(rank = 0\) *= *$jube_pat_fp'}
+        - {name: init_time,         type: float, unit: s,                 _: '---- Elapsed time so far = $jube_pat_fp seconds ----'}
+        - {name: run_time,          type: float, unit: s,                 _: '---- Elapsed time for executing quantum circuit = $jube_pat_fp seconds ----'}
+        - {name: mpi_time,          type: float, unit: s,                 _: '<Swap_time_total> *= *$jube_pat_fp'}
+        - {name: norm,              type: float,            mode: python, _: '$ngates / 341'}
+        - {name: norm_total_time,   type: float, unit: s,   mode: python, _: '$total_time / $norm'}
+        - {name: norm_mpi_time,     type: float, unit: s,   mode: python, _: '$mpi_time / $norm'}
+        - {name: directory,                                 mode: text,   _: '$jube_wp_relpath/$problem'}
+    - name: pattern_env
+      pattern:
+        - {name: jobid,      _: 'SLURM_JOB_ID=$jube_pat_int'}
+
+analyser:
+    name: analyse
+    analyse:
+        step: execute
+        file:
+            - {use: pattern_log, _: $problem.log}
+            - {use: pattern_env, _: env.log}
+
+result:
+    use: analyse
+    table:
+        name: result
+        sort: nqubits
+        style: csv
+        column:
+            - {_: nqubits, title: 'qubits'}
+            - large
+            - verified
+            - ngates
+            - nodes
+            - {_: mpi, title: 'gpus'}
+            - {_: mem_per_mpi, title: 'mem/gpu[GiB]'}
+            - {_: total_time, format: .2f}
+            - {_: init_time, format: .2f}
+            - {_: run_time, format: .2f}
+            - {_: mpi_time, format: .2f}
+            - {_: norm, format: .2f}
+            - {_: norm_total_time, format: .2f}
+            - {_: norm_mpi_time, format: .2f}
+            - systemname
+            - jobid
+            - directory

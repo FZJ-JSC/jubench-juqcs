@@ -1,0 +1,111 @@
+name: juqcsmsa
+outpath: runs
+comment: JUBE configuration for JUQCS MSA benchmarks (has to be submitted from cluster!)
+
+parameterset:
+    name: params
+    parameter:
+        - {name: problem,          _: h34}
+        - {name: nodes,            _: '16'}                                                  # $nodes * $mpipernode has to be a power of 2!
+        - {name: nodesbooster,     _: '$nodes // 2', mode: python}
+        - {name: nodescluster,     _: '$nodes // 2', mode: python}
+        - {name: mpipernode,       _: 4}                                                     # has to be the number of GPUs per booster node (1 MPI per GPU)
+        - {name: gpus,             _: '$nodesbooster * $mpipernode', mode: python}
+        - {name: exebooster,       _: qc22.gpu.exe}
+        - {name: execluster,       _: qc22.cpu.exe}
+        - {name: systemname,       _: 'cat /etc/FZJ/systemname | tr -d "\n"', mode: shell}
+        - {name: partitioncluster, _: '"mem192" if $nodes == 2 else "batch"', mode: python}  # 34 qubits need 16*2^34 B = 256 GiB; so with only 2 nodes, we need 128 GiB per node, which requires mem192
+        - {name: partitionbooster, _: 'booster'}
+        - {name: module1,          _: NVHPC}
+        - {name: module2,          _: ParaStationMPI}
+
+fileset:
+    name: files
+    link: ../../src/juqcs-light/src
+    prepare:
+        - module load $module1 $module2
+    copy:
+        - ../../src/juqcs-light/src/input/$problem.qcx
+        - ../../src/juqcs-light/src/submit-msa-script.in
+        - ../../src/juqcs-light/src/$exebooster
+        - ../../src/juqcs-light/src/$execluster
+
+substituteset:
+    name: substitute
+    iofile: {in: submit-msa-script.in, out: submit-msa-script.job}
+    sub:
+        - {source: '#PROBLEM#',          dest: $problem}
+        - {source: '#NODESBOOSTER#',     dest: $nodesbooster}
+        - {source: '#NODESCLUSTER#',     dest: $nodescluster}
+        - {source: '#MPIPERNODE#',       dest: $mpipernode}
+        - {source: '#EXEBOOSTER#',       dest: $exebooster}
+        - {source: '#EXECLUSTER#',       dest: $execluster}
+        - {source: '#PARTITIONCLUSTER#', dest: $partitioncluster}
+        - {source: '#PARTITIONBOOSTER#', dest: $partitionbooster}
+        - {source: '#MODULE1#',          dest: $module1}
+        - {source: '#MODULE2#',          dest: $module2}
+
+step:
+    name: execute
+    use:
+        - params
+        - files
+        - substitute
+    do:
+        done_file: done_file
+        error_file: ReportError.log
+        _: sbatch submit-msa-script.job
+
+patternset:
+    - name: pattern_log
+      pattern:
+        - {name: qubits,            type: int,                            _: 'Number of qubits *= *$jube_pat_int'}
+        - {name: expectations,                                            _: '-+i--+<Qx\(i\)>-+<Qy\(i\)>-+<Qz\(i\)>-\s((?:[0-9\.E+ ]*\s)+) *-+'}
+        - {name: verified,                                  mode: python, _: '["wrong","correct"][int(all([i, 0, 0.5, 0.5] == list(map(float,line.split())) for i,line in enumerate("""$expectations""".strip().splitlines())))]'}
+        # uncomment next line to debug verification
+        #- {name: verified,                                  mode: python, _: '"check if [[i,0,0.5,0.5]] == "+str(list(list(map(float,line.split())) for i,line in enumerate("""$expectations""".strip().splitlines())))'}
+        - {name: mpi,               type: int,                            _: 'Number of MPI processes *= *$jube_pat_int'}
+        - {name: memory,            type: int,                            _: 'Memory per MPI process allocated to store .psi> *= *$jube_pat_fp'}
+        - {name: noperations,       type: int,                            _: 'Total number of operations *= *$jube_pat_int'}
+        - {name: ngates,            type: int,              mode: python, _: '$noperations - 1'}
+        - {name: mem_per_mpi,                    unit: GiB, mode: python, _: '$memory / 1024'}
+        - {name: total_time,        type: float, unit: s,                 _: 'Elapsed time \(rank = 0\) *= *$jube_pat_fp'}
+        - {name: init_time,         type: float, unit: s,                 _: '---- Elapsed time so far = $jube_pat_fp seconds ----'}
+        - {name: run_time,          type: float, unit: s,                 _: '---- Elapsed time for executing quantum circuit = $jube_pat_fp seconds ----'}
+        - {name: mpi_time,          type: float, unit: s,                 _: '<Swap_time_total> *= *$jube_pat_fp'}
+        - {name: comp_time,         type: float, unit: s,   mode: python, _: '$total_time - $mpi_time'}
+        - {name: directory,                                 mode: text,   _: '$jube_wp_relpath/$problem'}
+    - name: pattern_env
+      pattern:
+        - {name: jobid,      _: 'SLURM_JOB_ID=$jube_pat_int'}
+
+analyser:
+    name: analyse
+    analyse:
+        step: execute
+        file:
+            - {use: pattern_log, _: $problem.log}
+            - {use: pattern_env, _: env.log}
+
+result:
+    use: analyse
+    table:
+        name: result
+        sort: qubits
+        style: csv
+        column:
+            - qubits
+            - verified
+            - ngates
+            - nodes
+            - gpus
+            - {_: mpi, title: 'mpi_size'}
+            - {_: mem_per_mpi, title: 'mem/mpi[GiB]'}
+            - {_: total_time, format: .2f}
+            - {_: init_time, format: .2f}
+            - {_: run_time, format: .2f}
+            - {_: mpi_time, format: .2f}
+            - {_: comp_time, format: .2f}
+            - systemname
+            - jobid
+            - directory

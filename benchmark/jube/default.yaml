@@ -1,0 +1,129 @@
+name: juqcs
+outpath: runs
+comment: JUBE configuration for JUQCS baseline benchmarks
+
+parameterset:
+  - name: params
+    parameter:
+        - {name: largescale,     tag: '!large_scale', _: 'no'}
+        - {name: largescale,     tag: 'large_scale',  _: 'yes'}
+        - {name: problem,        tag: '!large_scale', _: h36}
+        - {name: problem,        tag: 'large_scale',  _: h38}
+  - name: systemParameter
+    init_with: platform.xml
+    parameter:
+        - {name: systemname,                          _: 'cat /etc/FZJ/systemname | tr -d "\n"', mode: shell}
+        - {name: nodes,          tag: '!large_scale', _: '8'}
+        - {name: nodes,          tag: 'large_scale',  _: '32,64,128,256,512'}
+        - {name: taskspernode,                        _: 4}                                       # has to be the number of GPUs per node (1 MPI per GPU)
+        - {name: tasks,                               _: '$nodes * $taskspernode', mode: python}  # has to be a power of 2!
+        - {name: threadspertask,                      _: 12}
+        - {name: timelimit,                           _: '01:00:00'}
+        - {name: gres,                                _: 'gpu:$taskspernode'}
+        - {name: executable,                          _: 'qc22.gpu.exe'}
+        - {name: args_exec,                           _: '$problem.qcx /*GPUS:$taskspernode /*SWAP:$taskspernode > $problem.log'}
+        - {name: env,                                 _: 'export I_MPI_HARD_FINALIZE=1 KMP_AFFINITY=compact'}
+        - {name: queue,          tag: 'large_scale',  _: '"largebooster" if $nodes > 256 else "booster"', mode: python}  # only on juwels booster
+        - name: queue
+          tag: '!large_scale'
+          mode: python
+          _: >
+            {
+                'jedi':          'all',
+                'juwelsbooster': 'booster',
+                'jurecadc':      'dc-gpu-large',
+            }['${systemname}']
+        - name: preprocess  # need to specify the right modules for each system
+          mode: python
+          _: >
+            {
+                'jedi':          'module load NVHPC ParaStationMPI; export PATH=".:/p/project1/cjsc/jedi-testing/renv/:$PATH"',
+                'juwelsbooster': 'module load NVHPC ParaStationMPI',
+                'jurecadc':      'module load NVHPC ParaStationMPI MPI-settings/CUDA UCX-settings/RC-CUDA',
+            }['${systemname}']
+        - {name: postprocess,                          _: 'env > env.log && grep "All done" progress.log'}
+  - name: executeset
+    init_with: platform.xml
+    parameter:
+        - {name: done_file,  _: 'done_file'}
+        - {name: error_file, _: 'ReportError.log'}
+        - {name: args_starter, _: '"--cpus-per-task=$threadspertask" if "$systemname" != "jedi" else "--cpus-per-task=$threadspertask renv --force CUDA_VISIBLE_DEVICES"', mode: python}
+
+fileset:
+    name: files
+    link: ../../src/juqcs-light/src
+    prepare:
+        - $preprocess
+        - {tag: 'force_recompile',  work_dir: src, _: make -B}
+        - {tag: '!force_recompile', work_dir: src, _: make}
+    copy:
+        - ../../src/juqcs-light/src/input-long/$problem.qcx
+        - ../../src/juqcs-light/src/$executable
+
+step:
+    name: execute
+    use:
+        - params
+        - systemParameter
+        - executeset
+        - files
+        - {from: platform.xml, _: jobfiles}
+        - {from: platform.xml, _: executesub}
+    do:
+        done_file: $done_file
+        error_file: $error_file
+        _: $submit $submit_script
+
+patternset:
+    - name: pattern_log
+      pattern:
+        - {name: qubits,            type: int,                            _: 'Number of qubits *= *$jube_pat_int'}
+        - {name: expectations,                                            _: '-+i--+<Qx\(i\)>-+<Qy\(i\)>-+<Qz\(i\)>-\s((?:[0-9\.E+ ]*\s)+) *-+'}
+        - {name: verified,                                  mode: python, _: '["wrong","correct"][int(all([i, 0, 0.5, 0.5] == list(map(float,line.split())) for i,line in enumerate("""$expectations""".strip().splitlines())))]'}
+        # uncomment next line to debug verification
+        #- {name: verified,                                  mode: python, _: '"check if [[i,0,0.5,0.5]] == "+str(list(list(map(float,line.split())) for i,line in enumerate("""$expectations""".strip().splitlines())))'}
+        - {name: mpi,               type: int,                            _: 'Number of MPI processes *= *$jube_pat_int'}
+        - {name: memory,            type: int,                            _: 'Memory per MPI process allocated to store .psi> *= *$jube_pat_fp'}
+        - {name: noperations,       type: int,                            _: 'Total number of operations *= *$jube_pat_int'}
+        - {name: ngates,            type: int,              mode: python, _: '$noperations - 1'}
+        - {name: mem_per_mpi,                    unit: GiB, mode: python, _: '$memory / 1024'}
+        - {name: total_time,        type: float, unit: s,                 _: 'Elapsed time \(rank = 0\) *= *$jube_pat_fp'}
+        - {name: init_time,         type: float, unit: s,                 _: '---- Elapsed time so far = $jube_pat_fp seconds ----'}
+        - {name: run_time,          type: float, unit: s,                 _: '---- Elapsed time for executing quantum circuit = $jube_pat_fp seconds ----'}
+        - {name: mpi_time,          type: float, unit: s,                 _: '<Swap_time_total> *= *$jube_pat_fp'}
+        - {name: comp_time,         type: float, unit: s,   mode: python, _: '$total_time - $mpi_time'}
+        - {name: directory,                                 mode: text,   _: '$jube_wp_relpath/$problem'}
+    - name: pattern_env
+      pattern:
+        - {name: jobid,      _: 'SLURM_JOB_ID=$jube_pat_int'}
+
+analyser:
+    name: analyse
+    analyse:
+        step: execute
+        file:
+            - {use: pattern_log, _: $problem.log}
+            - {use: pattern_env, _: env.log}
+
+result:
+    use: analyse
+    table:
+        name: result
+        sort: qubits
+        style: csv
+        column:
+            - qubits
+            - largescale
+            - verified
+            - ngates
+            - nodes
+            - {_: mpi, title: 'gpus'}
+            - {_: mem_per_mpi, title: 'mem/gpu[GiB]'}
+            - {_: total_time, format: .2f}
+            - {_: init_time, format: .2f}
+            - {_: run_time, format: .2f}
+            - {_: mpi_time, format: .2f}
+            - {_: comp_time, format: .2f}
+            - systemname
+            - jobid
+            - directory

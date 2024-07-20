@@ -1,0 +1,14 @@
+qubits,largescale,verified,ngates,nodes,gpus,mem/gpu[GiB],total_time[s],init_time[s],run_time[s],mpi_time[s],norm,norm_total_time[s],norm_mpi_time[s],systemname,jobid,directory
+31,yes,correct,341,1,1,32.0,29.30,10.14,19.16,0.00,1.00,29.30,0.00,juwelsbooster,5996637,runs/000014/000000_execute/work/h31
+32,yes,correct,352,1,2,32.0,34.72,9.36,25.37,7.67,1.03,33.64,7.43,juwelsbooster,5996638,runs/000014/000001_execute/work/h32
+33,yes,correct,363,1,4,32.0,39.01,9.91,29.11,11.70,1.06,36.65,10.99,juwelsbooster,5996639,runs/000014/000002_execute/work/h33
+34,yes,correct,374,2,8,32.0,53.63,12.21,41.43,24.00,1.10,48.90,21.88,juwelsbooster,5996640,runs/000014/000003_execute/work/h34
+35,yes,correct,385,4,16,32.0,63.08,9.61,53.49,35.63,1.13,55.87,31.56,juwelsbooster,5996641,runs/000014/000004_execute/work/h35
+36,yes,correct,396,8,32,32.0,79.28,14.28,65.04,46.98,1.16,68.27,40.45,juwelsbooster,5996642,runs/000014/000005_execute/work/h36
+37,yes,correct,407,16,64,32.0,87.28,11.31,76.27,58.75,1.19,73.13,49.22,juwelsbooster,5996643,runs/000014/000006_execute/work/h37
+38,yes,correct,418,32,128,32.0,101.01,10.36,90.75,71.86,1.23,82.41,58.62,juwelsbooster,5996644,runs/000014/000007_execute/work/h38
+39,yes,correct,429,64,256,32.0,113.52,10.08,103.58,83.73,1.26,90.24,66.55,juwelsbooster,5996645,runs/000014/000008_execute/work/h39
+40,yes,correct,440,128,512,32.0,129.05,10.98,118.30,97.85,1.29,100.01,75.83,juwelsbooster,5996647,runs/000014/000009_execute/work/h40
+41,yes,correct,451,256,1024,32.0,155.93,12.07,144.21,124.70,1.32,117.90,94.29,juwelsbooster,5996648,runs/000014/000010_execute/work/h41
+42,yes,correct,462,512,2048,32.0,185.38,12.99,173.44,153.30,1.35,136.83,113.15,juwelsbooster,5996649,runs/000014/000011_execute/work/h42
+
